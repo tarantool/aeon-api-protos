@@ -1,0 +1,526 @@
+syntax = "proto3";
+
+package aeon_router;
+
+option go_package = "./pb";
+
+// API to Aeon - a distributed database based on Tarantool.
+service AeonRouterService {
+  //
+  // Diagnostic requests.
+  //
+
+  // Pings the router.
+  rpc Ping(PingRequest) returns (PingResponse) {}
+
+  //
+  // DDL requests.
+  //
+
+  // Creates a space with the given definition.
+  rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
+
+  // Drops a space by name.
+  rpc DropSpace(DropSpaceRequest) returns (DropSpaceResponse) {}
+
+  //
+  // DML requests.
+  //
+
+  // Transactionally executes a set of read and write operations.
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse) {}
+
+  // Transactionally inserts tuples into a space.
+  // Raises an error if a tuple with the same key already exists.
+  rpc Insert(InsertRequest) returns (InsertResponse) {}
+
+  // Transactionally replaces tuples in a space.
+  // If a tuple with the same key already exists, it will be replaced.
+  rpc Replace(ReplaceRequest) returns (ReplaceResponse) {}
+
+  // Transactionally deletes tuples from a space.
+  // If a key doesn't exist, it will be ignored (no error is raised).
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+
+  // Transactionally queries tuples from a space.
+  rpc Get(GetRequest) returns (GetResponse) {}
+
+  // Non-transactionally select tuples from a space.
+  rpc Select(SelectRequest) returns (stream SelectResponse) {}
+
+  //
+  // SQL requests.
+  //
+
+  // Execute a SQL query.
+  rpc SQL(SQLRequest) returns (SQLResponse) {}
+
+  // Execute a SQL query and return the result using a stream.
+  rpc SQLStream(SQLRequest) returns (stream SQLResponse) {}
+
+  // Check if an SQL is valid
+  // We provide the method for database CLI.
+  rpc SQLCheck(SQLRequest) returns (SQLCheckResponse) {}
+}
+
+//
+// Common structures.
+//
+
+// Special value denoting null.
+enum NullValue { NULL_VALUE = 0; }
+
+// Array of arbitrary-typed values.
+message ArrayValue { repeated Value fields = 1; }
+
+// Map with string keys and arbitrary-typed values..
+message MapValue { map<string, Value> fields = 1; }
+
+// Date time value.
+message DateTimeValue {
+  int64 seconds = 1;
+  int64 nsec = 2;
+  string location = 3;
+}
+
+// Date time interval value.
+message IntervalValue {
+  enum IntervalAdjust {
+    INTERVAL_ADJUST_NONE = 0;
+    INTERVAL_ADJUST_EXCESS = 1;
+    INTERVAL_ADJUST_LAST = 2;
+  }
+  int64 year = 1;
+  int64 month = 2;
+  int64 week = 3;
+  int64 day = 4;
+  int64 hour = 5;
+  int64 min = 6;
+  int64 sec = 7;
+  int64 nsec = 8;
+  IntervalAdjust adjust = 9;
+}
+
+// Arbitrary value that can be serialized to be sent over the network or
+// stored in the database.
+message Value {
+  oneof kind {
+    uint64 unsigned_value = 1;
+    string string_value = 2;
+    double number_value = 3;
+    sint64 integer_value = 4;
+    bool boolean_value = 5;
+    bytes varbinary_value = 6;
+    string decimal_value = 7;
+    string uuid_value = 8;
+    DateTimeValue datetime_value = 9;
+    IntervalValue interval_value = 10;
+    ArrayValue array_value = 11;
+    MapValue map_value = 12;
+    NullValue null_value = 13;
+  }
+}
+
+// Error information.
+message Error {
+  // Error type.
+  // * AeonError for core Aeon errors.
+  // * AeonSQLError for issues with SQL parsing.
+  // * AeonGRPCError for issues with gRPC encoding.
+  string type = 1;
+  // Error name.
+  string name = 2;
+  // Error location: file, line.
+  string file = 3;
+  uint64 line = 4;
+  // Human-readable error description.
+  string msg = 5;
+  // System errno (usually not set).
+  uint64 errno = 6;
+  // Error code.
+  uint64 code = 7;
+  // Fields with extra information.
+  MapValue fields = 8;
+  // Previous error on the error stack (cause of this error).
+  Error prev = 9;
+}
+
+// Tuple: array of values.
+message Tuple { repeated Value fields = 1; }
+
+// Tuple format: array of field names.
+message TupleFormat { repeated string names = 1; }
+
+// Read or write operation executed in a transaction.
+message Operation {
+  // Target space name.
+  string space = 1;
+  // Target key in the space. Must be full (have all defined key parts).
+  Tuple key = 2;
+  // In a request:
+  // * Ignored for read operations.
+  // * Specifies the tuple to write in a write operation.
+  // In a response:
+  // * Tuple read from or written to the target space.
+  // The write operation type depends on the tuple value:
+  // * NOP if the tuple is not set.
+  // * DELETE if the tuple is set but has no fields.
+  // * REPLACE otherwise. The tuple must match the target key.
+  // The tuple may be overwritten by the user-defined function specified in
+  // a request to change the written value or even operation type depending on
+  // read values.
+  Tuple tuple = 3;
+}
+
+// Type a space field can have.
+enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0;
+  FIELD_TYPE_ANY = 1;
+  FIELD_TYPE_UNSIGNED = 2;
+  FIELD_TYPE_STRING = 3;
+  FIELD_TYPE_NUMBER = 4;
+  FIELD_TYPE_DOUBLE = 5;
+  FIELD_TYPE_INTEGER = 6;
+  FIELD_TYPE_BOOLEAN = 7;
+  FIELD_TYPE_VARBINARY = 8;
+  FIELD_TYPE_SCALAR = 9;
+  FIELD_TYPE_DECIMAL = 10;
+  FIELD_TYPE_UUID = 11;
+  FIELD_TYPE_DATETIME = 12;
+  FIELD_TYPE_INTERVAL = 13;
+  FIELD_TYPE_ARRAY = 14;
+  FIELD_TYPE_MAP = 15;
+}
+
+// Space field definition.
+message FieldDef {
+  // Field name.
+  string name = 1;
+  // Field type.
+  FieldType type = 2;
+  // If set to true, the field may store null values. Optional.
+  bool is_nullable = 3;
+}
+
+// Key part definition.
+message KeyPartDef {
+  enum KeyPartSortOrder {
+    KEY_PART_SORT_ORDER_ASC = 0;
+    KEY_PART_SORT_ORDER_DESC = 1;
+  }
+  // Indexed field ordinal number (1-based) or name.
+  oneof field {
+    uint64 id = 1;
+    string name = 2;
+  }
+  // Key part type. Optional: if omitted, it will be deduced from
+  // the corresponding space field type.
+  FieldType type = 3;
+  // Sorting order: ascending (default) or descending.
+  KeyPartSortOrder sort_order = 4;
+}
+
+//
+// Diagnostic requests.
+//
+
+// Pings the router.
+
+message PingRequest {}
+
+message PingResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+}
+
+//
+// DDL requests.
+//
+
+// Creates a space with the given definition.
+
+message CreateSpaceRequest {
+  // Name of the new space.
+  string name = 1;
+  // Format of the new space.
+  repeated FieldDef format = 2;
+  // Sorting key definition (indexed fields).
+  repeated KeyPartDef key_def = 3;
+}
+
+message CreateSpaceResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+}
+
+// Drops a space by name.
+
+message DropSpaceRequest {
+  // Name of the space to drop.
+  string name = 1;
+}
+
+message DropSpaceResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+}
+
+//
+// DML requests.
+//
+// NOTE: Any DML request may fail due to a transient error caused by the stale
+// range cache on the router. In this case the error will be set to TRY_AGAIN,
+// and the user is supposed to retry after a reasonable timeout.
+//
+
+// Transactionally executes a set of read and write operations.
+
+message ExecuteRequest {
+  // Array of read operations.
+  repeated Operation read_set = 1;
+  // Array of write operations.
+  repeated Operation write_set = 2;
+  // Source code of a Lua function that will be used to update the write
+  // operations. It's optional: if not set, the write operations will be
+  // executed as is.
+  //
+  // The function is passed three arguments: the read set with filled tuples,
+  // the original write set, and the optional extra argument set by the caller
+  // (see below). If the function raises an error, the transaction will be
+  // aborted, otherwise it will apply the write set. The function may update
+  // the tuples in write operations (in-place), but it may not add or delete
+  // operations or update the target spaces or keys.
+  //
+  // A read/write operation is passed in an array: {space, key, tuple}.
+  // (without string key names).
+  //
+  // Below is an example of a Lua function that inserts tuples only if there
+  // are no tuples with the same keys, otherwise returns the existing tuples.
+  // It's supposed to be passed read and write sets with the same keys.
+  //
+  // function(read_set, write_set, flags)
+  //     local exists = {}
+  //     for _, op in pairs(read_set) do
+  //         if op[3] ~= nil then
+  //             table.insert(exists, op[3])
+  //         end
+  //     end
+  //     if #exists > 0 then
+  //         for _, op in pairs(write_set) do
+  //             op[3] = nil
+  //         end
+  //     end
+  //     return {exists = exists}
+  // end
+  //
+  string func = 3;
+  // Argument passed to the user-defined function. Optional.
+  Value func_arg = 4;
+  // Map : space name -> key format.
+  // Contains formats of all provided keys. Optional.
+  map<string, TupleFormat> key_formats = 5;
+  // Map : space name -> tuple format.
+  // Contains formats of all provided tuples. Optional.
+  map<string, TupleFormat> tuple_formats = 6;
+}
+
+message ExecuteResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Array of executed read operations (with filled tuples).
+  repeated Operation read_set = 2;
+  // Array of executed write operations (updated by the user-defined function).
+  repeated Operation write_set = 3;
+  // Value returned by the user-defined function.
+  Value func_ret = 4;
+  // Map : space name -> tuple format.
+  // Contains formats of all returned tuples.
+  map<string, TupleFormat> tuple_formats = 5;
+}
+
+// Transactionally inserts tuples into a space.
+// Raises an error if a tuple with the same key already exists.
+
+message InsertRequest {
+  message InsertFlags {
+    // If set, return the inserted (new) tuples.
+    bool return_tuples = 1;
+  }
+  // Target space name.
+  string space = 1;
+  // Tuples to insert into the space.
+  repeated Tuple tuples = 2;
+  // Optional flags, see above.
+  InsertFlags flags = 3;
+  // Format of the provided tuples. Optional.
+  TupleFormat tuple_format = 4;
+}
+
+message InsertResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Inserted (new) tuples (only if return_tuples flag was set).
+  repeated Tuple tuples = 2;
+  // Format of the returned tuples.
+  TupleFormat tuple_format = 3;
+}
+
+// Transactionally replaces tuples in a space.
+// If a tuple with the same key already exists, it will be replaced.
+
+message ReplaceRequest {
+  message ReplaceFlags {
+    // If set, return the inserted (new) tuples.
+    bool return_tuples = 1;
+  }
+  // Target space name.
+  string space = 1;
+  // Tuple to replace in the space.
+  repeated Tuple tuples = 2;
+  // Optional flags, see above.
+  ReplaceFlags flags = 3;
+  // Format of the provided tuples. Optional.
+  TupleFormat tuple_format = 4;
+}
+
+message ReplaceResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Inserted (new) tuples (only if return_tuples flag was set).
+  repeated Tuple tuples = 2;
+  // Format of the returned tuples.
+  TupleFormat tuple_format = 3;
+}
+
+// Transactionally deletes tuples from a space.
+// If a key doesn't exist, it will be ignored (no error is raised).
+
+message DeleteRequest {
+  message DeleteFlags {
+    // If set, return the deleted (old) tuples.
+    bool return_tuples = 1;
+  }
+  // Target space name.
+  string space = 1;
+  // Keys to delete from the space.
+  repeated Tuple keys = 2;
+  // Optional flags, see above.
+  DeleteFlags flags = 3;
+  // Format of the provided keys. Optional.
+  TupleFormat key_format = 4;
+}
+
+message DeleteResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Deleted (old) tuples (only if return_tuples flag was set).
+  repeated Tuple tuples = 2;
+  // Format of the returned tuples.
+  TupleFormat tuple_format = 3;
+}
+
+// Transactionally queries keys from a space.
+
+message GetRequest {
+  // Target space name.
+  string space = 1;
+  // Keys to query from the space.
+  repeated Tuple keys = 2;
+  // Format of the provided keys. Optional.
+  TupleFormat key_format = 3;
+}
+
+message GetResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Retrieved tuples.
+  repeated Tuple tuples = 2;
+  // Format of the returned tuples.
+  TupleFormat tuple_format = 3;
+}
+
+// Non-transactionally select tuples from a space. The tuples will be
+// returned as an array of chunks, where the last chunk will contain no
+// more than chunk_size tuples, and all the rest will contain exactly
+// chunk_size tuples.
+
+enum SelectIterator {
+  SELECT_ITERATOR_GT = 0;
+  SELECT_ITERATOR_GE = 1;
+  SELECT_ITERATOR_LT = 2;
+  SELECT_ITERATOR_LE = 3;
+  SELECT_ITERATOR_PP = 4;
+  SELECT_ITERATOR_NP = 5;
+}
+
+message SelectRequest {
+  // Target space name.
+  string space = 1;
+  // Key or partial key to query from the space.
+  Tuple key = 2;
+  // The type of iterator to use in the select.
+  SelectIterator iterator = 3;
+  // Max number of tuples to return.
+  uint64 limit = 4;
+  // Max number of function calls allowed.
+  uint64 calls_limit = 5;
+  // Function callback that allows to control output values. The function
+  // receives the following arguments: tuple, tuple_key (extracted key from
+  // the tuple) and func_arg. The callback must return:
+  // - key - for the next iteration,
+  // - iterator - for the next iteration,
+  // - tuple (or nil) - to store in the result set,
+  // - eof flag (true or false) - to stop all iterations if true.
+  string func = 6;
+  // Function argument.
+  Value func_arg = 7;
+  // Max number of tuples in each response.
+  uint64 chunk_size = 8;
+}
+
+message SelectResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Retrieved tuples in the chunk.
+  repeated Tuple tuples = 2;
+  // Number of calls in the chunk.
+  int64 calls = 3;
+  // Number of roundtrips done to get all returned tuples.
+  int64 roundtrips = 4;
+  // Key for the next chunk.
+  Tuple key = 5;
+  // Iterator for the next chunk.
+  SelectIterator iterator = 6;
+  // True if there are no more tuples left, false otherwise.
+  bool is_eof = 7;
+  // Format of the returned tuples.
+  TupleFormat tuple_format = 8;
+}
+
+//
+// SQL requests.
+//
+
+message SQLRequest {
+  // SQL query.
+  string query = 1;
+  // Bind variables.
+  map<string, Value> vars = 2;
+}
+
+message SQLResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Retrieved tuples.
+  repeated Tuple tuples = 2;
+  // Format of the returned tuples.
+  TupleFormat tuple_format = 3;
+}
+
+enum SQLCheckStatus {
+  SQL_QUERY_VALID = 0;
+  SQL_QUERY_INCOMPLETE = 1;
+  SQL_QUERY_INVALID = 2;
+}
+
+message SQLCheckResponse { SQLCheckStatus status = 1; }
