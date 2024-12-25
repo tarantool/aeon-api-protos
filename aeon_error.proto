@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+import "aeon_value.proto";
+
+package aeon;
+
+// Error information.
+message Error {
+  // Error type.
+  // * AeonError for core Aeon errors.
+  // * AeonSQLError for issues with SQL parsing.
+  // * AeonGRPCError for issues with gRPC encoding.
+  string type = 1;
+  // Error name.
+  string name = 2;
+  // Error location: file, line.
+  string file = 3;
+  uint64 line = 4;
+  // Human-readable error description.
+  string msg = 5;
+  // System errno (usually not set).
+  uint64 errno = 6;
+  // Error code.
+  uint64 code = 7;
+  // Fields with extra information.
+  MapValue fields = 8;
+  // Previous error on the error stack (cause of this error).
+  Error prev = 9;
+}

@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+import "aeon_value.proto";
+
+package aeon;
+
+// Tuple: array of values.
+message Tuple { repeated Value fields = 1; }
+
+// Tuple format: array of field names.
+message TupleFormat { repeated string names = 1; }
+
+// Read or write operation executed in a transaction.
+message Operation {
+  // Target space name.
+  string space = 1;
+  // Target key in the space. Must be full (have all defined key parts).
+  Tuple key = 2;
+  // In a request:
+  // * Ignored for read operations.
+  // * Specifies the tuple to write in a write operation.
+  // In a response:
+  // * Tuple read from or written to the target space.
+  // The write operation type depends on the tuple value:
+  // * NOP if the tuple is not set.
+  // * DELETE if the tuple is set but has no fields.
+  // * REPLACE otherwise. The tuple must match the target key.
+  // The tuple may be overwritten by the user-defined function specified in
+  // a request to change the written value or even operation type depending on
+  // read values.
+  Tuple tuple = 3;
+}
+
+// Type a space field can have.
+enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0;
+  FIELD_TYPE_ANY = 1;
+  FIELD_TYPE_UNSIGNED = 2;
+  FIELD_TYPE_STRING = 3;
+  FIELD_TYPE_NUMBER = 4;
+  FIELD_TYPE_DOUBLE = 5;
+  FIELD_TYPE_INTEGER = 6;
+  FIELD_TYPE_BOOLEAN = 7;
+  FIELD_TYPE_VARBINARY = 8;
+  FIELD_TYPE_SCALAR = 9;
+  FIELD_TYPE_DECIMAL = 10;
+  FIELD_TYPE_UUID = 11;
+  FIELD_TYPE_DATETIME = 12;
+  FIELD_TYPE_INTERVAL = 13;
+  FIELD_TYPE_ARRAY = 14;
+  FIELD_TYPE_MAP = 15;
+}
+
+// Space field definition.
+message FieldDef {
+  // Field name.
+  string name = 1;
+  // Field type.
+  FieldType type = 2;
+  // If set to true, the field may store null values. Optional.
+  bool is_nullable = 3;
+}
+
+// Key part definition.
+message KeyPartDef {
+  enum KeyPartSortOrder {
+    KEY_PART_SORT_ORDER_ASC = 0;
+    KEY_PART_SORT_ORDER_DESC = 1;
+  }
+  // Indexed field ordinal number (1-based) or name.
+  oneof field {
+    uint64 id = 1;
+    string name = 2;
+  }
+  // Key part type. Optional: if omitted, it will be deduced from
+  // the corresponding space field type.
+  FieldType type = 3;
+  // Sorting order: ascending (default) or descending.
+  KeyPartSortOrder sort_order = 4;
+}
