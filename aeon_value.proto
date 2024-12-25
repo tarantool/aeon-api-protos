@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package aeon;
+
+// Special value denoting null.
+enum NullValue { NULL_VALUE = 0; }
+
+// Array of arbitrary-typed values.
+message ArrayValue { repeated Value fields = 1; }
+
+// Map with string keys and arbitrary-typed values..
+message MapValue { map<string, Value> fields = 1; }
+
+// Date time value.
+message DateTimeValue {
+  int64 seconds = 1;
+  int64 nsec = 2;
+  string location = 3;
+}
+
+// Date time interval value.
+message IntervalValue {
+  enum IntervalAdjust {
+    INTERVAL_ADJUST_NONE = 0;
+    INTERVAL_ADJUST_EXCESS = 1;
+    INTERVAL_ADJUST_LAST = 2;
+  }
+  int64 year = 1;
+  int64 month = 2;
+  int64 week = 3;
+  int64 day = 4;
+  int64 hour = 5;
+  int64 min = 6;
+  int64 sec = 7;
+  int64 nsec = 8;
+  IntervalAdjust adjust = 9;
+}
+
+// Arbitrary value that can be serialized to be sent over the network or
+// stored in the database.
+message Value {
+  oneof kind {
+    uint64 unsigned_value = 1;
+    string string_value = 2;
+    double number_value = 3;
+    sint64 integer_value = 4;
+    bool boolean_value = 5;
+    bytes varbinary_value = 6;
+    string decimal_value = 7;
+    string uuid_value = 8;
+    DateTimeValue datetime_value = 9;
+    IntervalValue interval_value = 10;
+    ArrayValue array_value = 11;
+    MapValue map_value = 12;
+    NullValue null_value = 13;
+  }
+}

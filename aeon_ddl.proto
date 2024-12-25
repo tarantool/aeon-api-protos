@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+import "aeon_error.proto";
+import "aeon_schema.proto";
+
+package aeon;
+
+// DDL API to Aeon - a distributed database based on Tarantool.
+service DDLService {
+  // Creates a space with the given definition.
+  rpc CreateSpace(CreateSpaceRequest) returns (CreateSpaceResponse) {}
+
+  // Drops a space by name.
+  rpc DropSpace(DropSpaceRequest) returns (DropSpaceResponse) {}
+}
+
+// Creates a space with the given definition.
+
+message CreateSpaceRequest {
+  // Name of the new space.
+  string name = 1;
+  // Format of the new space.
+  repeated FieldDef format = 2;
+  // Sorting key definition (indexed fields).
+  repeated KeyPartDef key_def = 3;
+}
+
+message CreateSpaceResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+}
+
+// Drops a space by name.
+
+message DropSpaceRequest {
+  // Name of the space to drop.
+  string name = 1;
+}
+
+message DropSpaceResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+}

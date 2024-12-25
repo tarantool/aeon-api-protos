@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+import "aeon_error.proto";
+import "aeon_value.proto";
+import "aeon_schema.proto";
+
+package aeon;
+
+// SQL API to Aeon - a distributed database based on Tarantool.
+service SQLService {
+  // Execute a SQL query.
+  rpc SQL(SQLRequest) returns (SQLResponse) {}
+
+  // Execute a SQL query and return the result using a stream.
+  rpc SQLStream(SQLRequest) returns (stream SQLResponse) {}
+
+  // Check if an SQL is valid
+  // We provide the method for database CLI.
+  rpc SQLCheck(SQLRequest) returns (SQLCheckResponse) {}
+}
+
+message SQLRequest {
+  // SQL query.
+  string query = 1;
+  // Bind variables.
+  map<string, Value> vars = 2;
+}
+
+message SQLResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Retrieved tuples.
+  repeated Tuple tuples = 2;
+  // Format of the returned tuples.
+  TupleFormat tuple_format = 3;
+}
+
+enum SQLCheckStatus {
+  SQL_QUERY_VALID = 0;
+  SQL_QUERY_INCOMPLETE = 1;
+  SQL_QUERY_INVALID = 2;
+}
+
+message SQLCheckResponse { SQLCheckStatus status = 1; }

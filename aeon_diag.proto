@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+import "aeon_error.proto";
+
+package aeon;
+
+// Diagnostic API to Aeon - a distributed database based on Tarantool.
+service DiagService {
+  // Pings the router.
+  rpc Ping(PingRequest) returns (PingResponse) {}
+}
+
+// Pings the router.
+
+message PingRequest {}
+
+message PingResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+}
