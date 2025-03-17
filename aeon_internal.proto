@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+import "aeon_error.proto";
+import "aeon_value.proto";
+
+package aeon;
+
+// Internal API to Aeon - a distributed database based on Tarantool.
+service InternalService {
+  // Get the gRPC server sideservice configuration.
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse) {}
+}
+
+// Get the gRPC server sideservice configuration.
+
+// Instance configuration.
+message Config {
+  // Tarantool instance information.
+  message Instance {
+    // Instance name.
+    string name = 1;
+    // Instance replicaset.
+    string replicaset = 2;
+    // Instance group.
+    string group = 3;
+    // Instance URI.
+    Value uri = 4;
+    // Instance roles.
+    repeated string roles = 5;
+  }
+  // Name of the associated Tarantool instance.
+  string name = 1;
+  // The configuration of "aeon.grpc" role of the associated Tarantool instance.
+  Value params = 2;
+  // Information about all instances from Tarantool configuration.
+  repeated Instance instances = 3;
+}
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // The gRPC server sideservice configuration.
+  Config config = 2;
+}
