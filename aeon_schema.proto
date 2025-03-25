@@ -31,6 +31,12 @@ message Operation {
   Tuple tuple = 3;
 }
 
+// Storage engine.
+enum Engine {
+  ENGINE_MEMTX = 0;
+  ENGINE_VINYL = 1;
+}
+
 // Type a space field can have.
 enum FieldType {
   FIELD_TYPE_UNSPECIFIED = 0;
