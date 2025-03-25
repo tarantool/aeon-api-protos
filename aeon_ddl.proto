@@ -23,6 +23,8 @@ message CreateSpaceRequest {
   repeated FieldDef format = 2;
   // Sorting key definition (indexed fields).
   repeated KeyPartDef key_def = 3;
+  // Storage engine.
+  Engine engine = 4;
 }
 
 message CreateSpaceResponse {
