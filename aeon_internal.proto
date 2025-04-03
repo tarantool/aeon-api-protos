@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "aeon_error.proto";
 import "aeon_value.proto";
+import "aeon_schema.proto";
 
 package aeon;
 
@@ -9,6 +10,38 @@ package aeon;
 service InternalService {
   // Get the gRPC server sideservice configuration.
   rpc GetConfig(GetConfigRequest) returns (GetConfigResponse) {}
+  // Find space by name in space cache.
+  rpc FindSpace(FindSpaceRequest) returns (FindSpaceResponse) {}
+  // Find range by space name and a key in range cache.
+  rpc FindRange(FindRangeRequest) returns (FindRangeResponse) {}
+  // Update space cache.
+  rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheResponse) {}
+}
+
+// Description of a range.
+message Range {
+  // The shard where the range is located.
+  string shard = 1;
+  // The range ID.
+  string id = 2;
+  // The space to which the range belongs.
+  string space = 3;
+  // Format of the space.
+  repeated FieldDef format = 4;
+  // Key definition of the space.
+  repeated KeyPartDef key_def = 5;
+  // Minimum key of the range.
+  Tuple key_begin = 6;
+  // Supremum key of the range, not included into the range.
+  Tuple key_end = 7;
+  // The state of the range.
+  string state = 8;
+  // The epoch of the range.
+  uint64 epoch = 9;
+  // The timestamp of the last change to the range.
+  uint64 timestamp = 10;
+  // The context of the range.
+  Value context = 11;
 }
 
 // Get the gRPC server sideservice configuration.
@@ -43,4 +76,49 @@ message GetConfigResponse {
   Error error = 1;
   // The gRPC server sideservice configuration.
   Config config = 2;
+}
+
+// Find space by name in space cache.
+
+message FindSpaceRequest {
+  // Name of the space to find.
+  string name = 1;
+}
+
+message FindSpaceResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Name of the found space.
+  string name = 2;
+  // Format of the found space.
+  repeated FieldDef format = 3;
+  // Key definition of the found space.
+  repeated KeyPartDef key_def = 4;
+  // The engine of the found space.
+  Engine engine = 5;
+}
+
+// Find range by space name and a key in range cache.
+
+message FindRangeRequest {
+  // The name of the space in which to search for the range.
+  string space = 1;
+  // Key from the range.
+  Tuple key = 2;
+}
+
+message FindRangeResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Description of the found range.
+  Range range = 2;
+}
+
+// Update space and range caches.
+
+message UpdateCacheRequest {}
+
+message UpdateCacheResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
 }
