@@ -42,7 +42,7 @@ message Value {
   oneof kind {
     uint64 unsigned_value = 1;
     string string_value = 2;
-    double number_value = 3;
+    double double_value = 3;
     sint64 integer_value = 4;
     bool boolean_value = 5;
     bytes varbinary_value = 6;
