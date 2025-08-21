@@ -40,7 +40,6 @@ message IntervalValue {
 // stored in the database.
 message Value {
   oneof kind {
-    uint64 unsigned_value = 1;
     string string_value = 2;
     double double_value = 3;
     sint64 integer_value = 4;
