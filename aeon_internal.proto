@@ -16,6 +16,8 @@ service InternalService {
   rpc FindRange(FindRangeRequest) returns (FindRangeResponse) {}
   // Update space cache.
   rpc UpdateCache(UpdateCacheRequest) returns (UpdateCacheResponse) {}
+  // Set error injection.
+  rpc SetInjection(SetInjectionRequest) returns (SetInjectionResponse) {}
 }
 
 // Description of a range.
@@ -122,3 +124,14 @@ message UpdateCacheResponse {
   // Error information. Set only on failure.
   Error error = 1;
 }
+
+// Set error injection.
+
+message SetInjectionRequest {
+  // Name of error injection.
+  string name = 1;
+  // True if injection is enabled, false otherwise.
+  bool is_enabled = 2;
+}
+
+message SetInjectionResponse {}
