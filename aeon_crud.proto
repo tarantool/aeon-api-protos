@@ -43,6 +43,63 @@ service CRUDService {
 // Transactionally executes a set of read and write operations.
 
 message ExecuteRequest {
+  // Message queue push section in a transaction request.
+  message Push {
+    // Definition of messages pushed to a shard-local queue.
+    message Message {
+      // Topic of the message.
+      string topic = 1;
+      // Data of the message.
+      Value data = 2;
+      // Time to live of the message.
+      double ttl = 3;
+    }
+    // The source code of the Lua function that will be used to generate
+    // messages. It's optional: if omitted, messages from the `messages`
+    // field will be sent instead.
+    //
+    // The function is passed three arguments: the resulting read set,
+    // the resulting write set, and an optional additional argument specified
+    // as `func_arg`. If the function raises an error, the error will be
+    // returned in the `push_err` field. The transaction will not be affected.
+    //
+    // The function must return an array of messages. Message is an array
+    // of `{topic, data, ttl}`, where `topic` is required and is a string
+    // value, `data` is required and is of any supported value type,
+    // and `ttl` is optional and represents a number of seconds.
+    //
+    // A read/write operation is passed in an array: {space, key, tuple}.
+    // (without string key names).
+    //
+    // Below is an example of a Lua function that returns messages
+    // with `read_topic` as topic and the first fields of the read tuples
+    // as data if the optional argument is `true`, and `write_topic`
+    // as topic and the first fields of the written tuples as data otherwise.
+    //
+    // function(rs, ws, arg)
+    //     local messages = {}
+    //     if arg == true then
+    //         for _, r in ipairs(rs) do
+    //             if r.tuple ~= nil then
+    //                 table.insert(messages, {'read_topic', r.tuple[1]})
+    //             end
+    //         end
+    //     else
+    //         for _, w in ipairs(ws) do
+    //             if w.tuple ~= nil then
+    //                 table.insert(messages, {'write_topic', w.tuple[1]})
+    //             end
+    //        end
+    //     end
+    //     return messages
+    // end
+    //
+    string func = 1;
+    // Additional argument to the push function. Optional.
+    Value func_arg = 2;
+    // Messages to send if the push function is not provided.
+    repeated Message messages = 3;
+  }
   // Array of read operations.
   repeated Operation read_set = 1;
   // Array of write operations.
@@ -89,6 +146,8 @@ message ExecuteRequest {
   // Map : space name -> tuple format.
   // Contains formats of all provided tuples. Optional.
   map<string, TupleFormat> tuple_formats = 6;
+  // Description of messages to push when executing a transaction.
+  Push push = 7;
 }
 
 message ExecuteResponse {
@@ -103,6 +162,9 @@ message ExecuteResponse {
   // Map : space name -> tuple format.
   // Contains formats of all returned tuples.
   map<string, TupleFormat> tuple_formats = 5;
+  // PushErr is the error returned by the push function, or nil
+  // if no error occurred.
+  Error push_err = 6;
 }
 
 // Transactionally inserts tuples into a space.
