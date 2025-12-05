@@ -17,6 +17,13 @@ service DDLService {
 // Creates a space with the given definition.
 
 message CreateSpaceRequest {
+  // CDC section of a space definition.
+  message CDC {
+    // Queue topic to push captured data changes to.
+    string topic = 1;
+    // Queue message TTL, in seconds.
+    double ttl = 2;
+  }
   // Name of the new space.
   string name = 1;
   // Format of the new space.
@@ -25,6 +32,8 @@ message CreateSpaceRequest {
   repeated KeyPartDef key_def = 3;
   // Storage engine.
   Engine engine = 4;
+  // CDC configuration.
+  CDC cdc = 5;
 }
 
 message CreateSpaceResponse {
