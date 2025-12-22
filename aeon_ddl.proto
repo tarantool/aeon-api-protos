@@ -12,6 +12,9 @@ service DDLService {
 
   // Drops a space by name.
   rpc DropSpace(DropSpaceRequest) returns (DropSpaceResponse) {}
+
+  // Restart CDC for a space.
+  rpc RestartCDC(RestartCDCRequest) returns (RestartCDCResponse) {}
 }
 
 // Creates a space with the given definition.
@@ -49,6 +52,18 @@ message DropSpaceRequest {
 }
 
 message DropSpaceResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+}
+
+// Restart CDC on a space.
+
+message RestartCDCRequest {
+  // Name of the space to restart CDC.
+  string space = 1;
+}
+
+message RestartCDCResponse {
   // Error information. Set only on failure.
   Error error = 1;
 }
