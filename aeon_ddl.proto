@@ -18,11 +18,36 @@ service DDLService {
 
 message CreateSpaceRequest {
   // CDC section of a space definition.
+  // When CDC is configured for a space, all changes to the space will be pushed
+  // to the specified topic. The message pushed when data is modified has
+  // the following format: `{'R', space_name, old_tuple, new_tuple}` .
+  // Here, `R` stands for `Replace`. The old and new tuples are the tuples
+  // deleted and inserted as a result of the transaction operation.
+  // If nothing was deleted or inserted, the corresponding field is set to `{}`.
+  // Note that either the old or new tuple is always set - CDC messages
+  // are not sent for NOP operations, either explicit (when the tuple is set
+  // to nil by the client) or implicit (when the deleted key does not exist).
   message CDC {
     // Queue topic to push captured data changes to.
     string topic = 1;
     // Queue message TTL, in seconds.
     double ttl = 2;
+  }
+  // This section configures notifications.
+  // Notification can be set to nullable datetime field.
+  // When the local time passes the time specified in the notification field,
+  // the message `{'N', space_name, tuple}` will be pushed to the specified
+  // topic.
+  message NotifyDef {
+    // Notification field. Must be of `datetime` type and be nullable.
+    oneof field {
+      uint64 id = 1;
+      string name = 2;
+    }
+    // Topic to push message to.
+    string topic = 3;
+    // TTL to use for notification messages, in seconds.
+    double ttl = 4;
   }
   // Name of the new space.
   string name = 1;
@@ -34,6 +59,8 @@ message CreateSpaceRequest {
   Engine engine = 4;
   // CDC configuration.
   CDC cdc = 5;
+  // Notification configuration.
+  repeated NotifyDef notify = 6;
 }
 
 message CreateSpaceResponse {
