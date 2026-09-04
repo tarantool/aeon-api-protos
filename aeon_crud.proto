@@ -148,6 +148,9 @@ message ExecuteRequest {
   map<string, TupleFormat> tuple_formats = 6;
   // Description of messages to push when executing a transaction.
   Push push = 7;
+  // How many times the transaction may be restarted after the transaction
+  // function updates the operation keys. Optional.
+  uint64 restarts_limit = 8;
 }
 
 message ExecuteResponse {
