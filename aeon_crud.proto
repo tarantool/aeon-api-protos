@@ -30,6 +30,10 @@ service CRUDService {
 
   // Non-transactionally select tuples from a space.
   rpc Select(SelectRequest) returns (stream SelectResponse) {}
+
+  // Non-transactionally finds keys that split the given key range of a space
+  // into approximately equal parts.
+  rpc FindSplitKeys(FindSplitKeysRequest) returns (FindSplitKeysResponse) {}
 }
 
 //
@@ -327,4 +331,25 @@ message SelectResponse {
   bool is_eof = 7;
   // Format of the returned tuples.
   TupleFormat tuple_format = 8;
+}
+
+// Non-transactionally finds keys that split the given key range of a space
+// into approximately equal parts.
+
+message FindSplitKeysRequest {
+  // Target space name.
+  string space = 1;
+  // Minimum key of the key range to split.
+  Tuple key_begin = 2;
+  // Next after the maximum key of the key range to split.
+  Tuple key_end = 3;
+  // Number of parts to split the key range into.
+  uint64 chunk_count = 4;
+}
+
+message FindSplitKeysResponse {
+  // Error information. Set only on failure.
+  Error error = 1;
+  // Keys splitting the key range.
+  repeated Tuple keys = 2;
 }
